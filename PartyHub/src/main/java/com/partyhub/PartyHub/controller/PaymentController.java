@@ -1,5 +1,10 @@
 package com.partyhub.PartyHub.controller;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import com.partyhub.PartyHub.dto.ChargeRequest;
 import com.partyhub.PartyHub.dto.PaymentResponse;
 import com.partyhub.PartyHub.entities.Ticket;
@@ -9,10 +14,14 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Discount;
 import com.stripe.param.ChargeCreateParams;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.util.Pair;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +44,7 @@ public class PaymentController {
     private String apiKey;
 
     @PostMapping("/charge")
-    public PaymentResponse chargeCard(@RequestBody ChargeRequest chargeRequest) throws StripeException {
+    public PaymentResponse chargeCard(@RequestBody ChargeRequest chargeRequest) throws StripeException, IOException, WriterException, MessagingException {
         Stripe.apiKey = apiKey;
         float discount = 0;
         if(chargeRequest.getDiscountCode() != ""){
@@ -63,18 +72,27 @@ public class PaymentController {
 
         Charge charge = Charge.create(params);
 
-        List<Ticket> tickets = new ArrayList<>();
+        List<Pair<String, byte[]>> qrCodeAttachments = new ArrayList<>();
         for (int i = 0; i < chargeRequest.getTickets(); i++) {
             Ticket ticket = new Ticket(UUID.randomUUID(), null, 0, "ticket", eventService.getEventById(chargeRequest.getEventId()).get());
-            tickets.add(ticketService.saveTicket(ticket));
+            ticketService.saveTicket(ticket);
+            String qrCodeData = ticket.getId().toString();
+            byte[] qrCodeImage = generateQRCodeImage(qrCodeData, 300, 300);
+            qrCodeAttachments.add(Pair.of("Ticket-" + ticket.getId() + ".png", qrCodeImage));
         }
 
-        String emailBody = tickets.stream()
-                .map(invite -> "Ticket Code: " + invite.getId().toString())
-                .collect(Collectors.joining("\n"));
-        emailSenderService.sendEmail(chargeRequest.getUserEmail(), "Tickets", emailBody);
+        String emailBody = "Here are your tickets:";
+        emailSenderService.sendEmailWithAttachments(chargeRequest.getUserEmail(), "Your Tickets", emailBody, qrCodeAttachments);
 
         return new PaymentResponse(charge.getId(), charge.getAmount(), charge.getCurrency(), charge.getDescription());
+    }
+
+    private byte[] generateQRCodeImage(String text, int width, int height) throws WriterException, IOException {
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
+        ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(bitMatrix, "PNG", pngOutputStream);
+        return pngOutputStream.toByteArray();
     }
 
 }

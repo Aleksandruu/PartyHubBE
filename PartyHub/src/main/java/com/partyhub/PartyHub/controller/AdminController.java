@@ -54,6 +54,9 @@ public class AdminController {
             event.setMainBanner(mainBanner);
             event.setSecondaryBanner(secondaryBanner);
 
+            Statistics statistics = new Statistics();
+            event.setStatistics(statistics);
+
             Event savedEvent = eventService.addEvent(event);
             return new ResponseEntity<>(savedEvent, HttpStatus.CREATED);
         } catch (Exception e) {

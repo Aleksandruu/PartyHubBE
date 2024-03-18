@@ -8,12 +8,13 @@ CREATE TABLE user_details (
     discount_for_next_ticket INT
 );
 CREATE TABLE statistics (
-                            id UUID PRIMARY KEY,
-                            tickets_sold INT,
-                            money_earned NUMERIC,
-                            generated_invites INT,
-                            ticket_based_attendees INT,
-                            invitation_based_attendees INT
+    id UUID PRIMARY KEY,
+    event_id UUID,
+    tickets_sold INT,
+    money_earned NUMERIC,
+    generated_invites INT,
+    ticket_based_attendees INT,
+    invitation_based_attendees INT
 );
 
 CREATE TABLE "user" (
