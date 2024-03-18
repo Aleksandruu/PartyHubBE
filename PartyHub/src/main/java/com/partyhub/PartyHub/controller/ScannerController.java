@@ -17,7 +17,8 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/scan")
+@RequestMapping("/api/scanner")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ScannerController {
 
     private final TicketService ticketService;
@@ -27,16 +28,12 @@ public class ScannerController {
     public ResponseEntity<ApiResponse> validateTicket(@PathVariable UUID ticketId) {
         try {
             Ticket ticket = ticketService.findById(ticketId)
-                    .orElseThrow(() -> new TicketNotFoundException("Ticket not found with ID: " + ticketId));
+                    .orElseThrow(() -> new TicketNotFoundException("Ticket not found!"));
 
             if (ticket.getValidationDate() == null) {
                 ticket.setValidationDate(LocalDateTime.now());
                 Event event = ticket.getEvent();
                 Statistics statistics = event.getStatistics();
-                if (statistics == null) {
-                    statistics = new Statistics();
-
-                }
 
                 if ("invite".equals(ticket.getType())) {
                     statistics.setInvitationBasedAttendees(statistics.getInvitationBasedAttendees() + 1);
@@ -46,9 +43,10 @@ public class ScannerController {
                 statisticsService.save(statistics);
 
                 ticketService.saveTicket(ticket);
+
                 return ResponseEntity.ok(new ApiResponse(true, "Ticket has been successfully validated."));
             } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse(false, "Ticket has already been used and cannot be validated again."));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse(false, ticket.getValidationDate().toString()));
             }
         } catch (TicketNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(false, e.getMessage()));
