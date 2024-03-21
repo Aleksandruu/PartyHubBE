@@ -1,11 +1,13 @@
 package com.partyhub.PartyHub.service;
 
 import com.partyhub.PartyHub.entities.User;
+import com.partyhub.PartyHub.exceptions.UserNotFoundException;
 
 import java.util.Optional;
 import java.util.UUID;
 
 public interface UserService {
+    public User findById(UUID userId);
     Optional<User> findByEmail(String email);
     Optional<User> findByVerificationToken(UUID verificationToken);
     Boolean existsByEmail(String email);

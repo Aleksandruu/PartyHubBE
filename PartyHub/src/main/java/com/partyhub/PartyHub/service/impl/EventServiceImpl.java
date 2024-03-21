@@ -4,9 +4,11 @@ import com.partyhub.PartyHub.dto.EventStatisticsDTO;
 import com.partyhub.PartyHub.dto.EventSummaryDto;
 import com.partyhub.PartyHub.entities.Event;
 import com.partyhub.PartyHub.entities.Statistics;
+import com.partyhub.PartyHub.exceptions.EventNotFoundException;
 import com.partyhub.PartyHub.repository.EventRepository;
 import com.partyhub.PartyHub.service.EventService;
 import com.partyhub.PartyHub.service.StatisticsService;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,47 +28,48 @@ public class EventServiceImpl implements EventService {
     private final StatisticsService statisticsService;
 
 
+
+
     @Override
+    @Transactional
     public Event addEvent(Event event) {
         return eventRepository.save(event);
     }
 
     @Override
+    @Transactional
     public Event editEvent(UUID id, Event eventDetails) {
-        Optional<Event> optionalEvent = eventRepository.findById(id);
-        if (optionalEvent.isPresent()) {
-            Event existingEvent = optionalEvent.get();
+        Event existingEvent = eventRepository.findById(id)
+                .orElseThrow(() -> new EventNotFoundException("Event not found for this id :: " + id));
 
-            existingEvent.setName(eventDetails.getName());
-            existingEvent.setMainBanner(eventDetails.getMainBanner());
-            existingEvent.setSecondaryBanner(eventDetails.getSecondaryBanner());
-            existingEvent.setLocation(eventDetails.getLocation());
-            existingEvent.setDate(eventDetails.getDate());
-            existingEvent.setDetails(eventDetails.getDetails());
-            existingEvent.setPrice(eventDetails.getPrice());
-            existingEvent.setDiscount(eventDetails.getDiscount());
-            existingEvent.setTicketsNumber(eventDetails.getTicketsNumber());
+        existingEvent.setName(eventDetails.getName());
+        existingEvent.setMainBanner(eventDetails.getMainBanner());
+        existingEvent.setSecondaryBanner(eventDetails.getSecondaryBanner());
+        existingEvent.setLocation(eventDetails.getLocation());
+        existingEvent.setDate(eventDetails.getDate());
+        existingEvent.setDetails(eventDetails.getDetails());
+        existingEvent.setPrice(eventDetails.getPrice());
+        existingEvent.setDiscount(eventDetails.getDiscount());
+        existingEvent.setTicketsNumber(eventDetails.getTicketsNumber());
 
-            return eventRepository.save(existingEvent);
-        } else {
-            throw new RuntimeException("Event not found for this id :: " + id);
-        }
+        return eventRepository.save(existingEvent);
     }
+
     @Override
     public Optional<Event> getNearestEvent() {
         LocalDate today = LocalDate.now();
-        Optional<Event> event = eventRepository.findTopByDateAfterOrderByDateAsc(today);
-        return event;
+        return eventRepository.findTopByDateAfterOrderByDateAsc(today);
     }
 
     @Override
     public Optional<Event> getEventById(UUID id) {
         return eventRepository.findById(id);
     }
+
     @Override
     public List<EventSummaryDto> getAllEventSummaries() {
         return eventRepository.findAll().stream()
-                .map(event -> new EventSummaryDto( event.getId(), event.getName(), event.getCity(), event.getDate()))
+                .map(event -> new EventSummaryDto(event.getId(), event.getName(), event.getCity(), event.getDate()))
                 .collect(Collectors.toList());
     }
 
@@ -77,16 +80,13 @@ public class EventServiceImpl implements EventService {
                 .map(event -> new EventSummaryDto(event.getName(), event.getCity(), event.getDate()))
                 .collect(Collectors.toList());
     }
+
     @Override
     public Optional<EventStatisticsDTO> getEventStatisticsDTO(UUID eventId) {
-        Optional<Event> eventOptional = eventRepository.findById(eventId);
-        if (!eventOptional.isPresent()) {
-            return Optional.empty();
-        }
-        Event event = eventOptional.get();
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventNotFoundException("Event not found for this id :: " + eventId));
 
         Optional<Statistics> statisticsOptional = statisticsService.getStatisticsByEventId(eventId);
-
 
         EventStatisticsDTO dto = new EventStatisticsDTO(
                 event.getName(),

@@ -12,7 +12,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 @Entity
 public class Event {
     @Id
@@ -34,9 +34,14 @@ public class Event {
     private float price;
     private float discount;
     private int ticketsNumber;
-    private int ticketsLeft = this.ticketsNumber;
+    private int ticketsLeft;
     @OneToOne(mappedBy = "event", cascade = CascadeType.ALL)
     private Statistics statistics;
     @OneToMany(mappedBy = "event")
     private List<Ticket> tickets;
+
+    @PrePersist
+    private void prePersist() {
+        this.ticketsLeft = this.ticketsNumber;
+    }
 }

@@ -3,10 +3,13 @@ package com.partyhub.PartyHub.service.impl;
 import com.partyhub.PartyHub.entities.Event;
 import com.partyhub.PartyHub.entities.User;
 import com.partyhub.PartyHub.entities.UserDetails;
+import com.partyhub.PartyHub.exceptions.UserNotFoundException;
 import com.partyhub.PartyHub.repository.UserRepository;
 import com.partyhub.PartyHub.service.EventService;
 import com.partyhub.PartyHub.service.UserService;
 import com.partyhub.PartyHub.util.PromoCodeGenerator;
+import io.micrometer.common.util.StringUtils;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +23,10 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final EventService eventService;
 
+    public User findById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
+    }
     @Override
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
@@ -53,9 +60,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void generateAndSetPromoCodeForUser(UUID userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
-        if (user.getPromoCode() == null || user.getPromoCode().isEmpty()) {
+        User user = findById(userId);
+        if (StringUtils.isEmpty(user.getPromoCode())) {
             String promoCode;
             do {
                 promoCode = PromoCodeGenerator.generatePromoCode(user.getUserDetails().getFullName());

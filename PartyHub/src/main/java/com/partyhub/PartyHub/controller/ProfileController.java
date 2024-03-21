@@ -3,11 +3,10 @@ package com.partyhub.PartyHub.controller;
 import com.partyhub.PartyHub.dto.ProfileDto;
 import com.partyhub.PartyHub.exceptions.UserNotFoundException;
 import com.partyhub.PartyHub.service.ProfileService;
+import com.partyhub.PartyHub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,25 +17,16 @@ public class ProfileController {
 
     private final ProfileService profileService;
 
-
     @GetMapping
-    public ResponseEntity<ProfileDto>  getProfile() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        try {
-            ProfileDto profile = profileService.getProfile(email);
-            return ResponseEntity.ok(profile);
-        } catch (UserNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
+    public ResponseEntity<ProfileDto> getProfile() {
+        String email = SecurityUtil.getCurrentUserEmail();
+        ProfileDto profile = profileService.getProfile(email);
+        return ResponseEntity.ok(profile);
     }
 
     @PutMapping
     public ResponseEntity<ApiResponse> updateProfile(@RequestBody ProfileDto updatedProfile) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
+        String email = SecurityUtil.getCurrentUserEmail();
         try {
             profileService.updateProfileDetails(email, updatedProfile);
             return ResponseEntity.ok(new ApiResponse(true, "Profile updated successfully"));
@@ -49,8 +39,7 @@ public class ProfileController {
 
     @DeleteMapping
     public ResponseEntity<ApiResponse> deleteProfile() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
+        String email = SecurityUtil.getCurrentUserEmail();
         try {
             profileService.deleteProfile(email);
             return ResponseEntity.ok(new ApiResponse(true, "Account deleted successfully!"));

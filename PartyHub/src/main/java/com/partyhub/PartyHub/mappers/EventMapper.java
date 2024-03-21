@@ -6,28 +6,31 @@ import com.partyhub.PartyHub.entities.Event;
 import com.partyhub.PartyHub.entities.Ticket;
 import org.springframework.stereotype.Component;
 
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 @Component
 public class EventMapper {
     public EventDto eventToDto(Event event){
         return new EventDto(
-                event.getId()
-                ,event.getName()
-                ,event.getMainBanner()
-                ,event.getSecondaryBanner()
-                ,event.getLocation()
-                ,event.getCity()
-                ,event.getLng()
-                ,event.getLat()
-                ,event.getDate()
-                ,event.getDetails()
-                ,event.getPrice()
-                ,event.getDiscount()
-                ,event.getTicketsNumber()
-                ,event.getTicketsLeft());
+                event.getId(),
+                event.getName(),
+                event.getMainBanner(),
+                event.getSecondaryBanner(),
+                event.getLocation(),
+                event.getCity(),
+                event.getLng(),
+                event.getLat(),
+                event.getDate(),
+                event.getDetails(),
+                event.getPrice(),
+                event.getDiscount(),
+                event.getTicketsNumber(),
+                event.getTicketsLeft());
     }
+
     public Event dtoToEvent(EventDto eventDto) {
         return Event.builder()
                 .id(eventDto.getId())
@@ -54,6 +57,4 @@ public class EventMapper {
         dto.setMainBanner(event.getMainBanner());
         return dto;
     }
-
-
 }

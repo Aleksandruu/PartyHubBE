@@ -16,4 +16,6 @@ public interface DiscountRepository extends JpaRepository<Discount, UUID> {
     @Modifying
     @Query("DELETE FROM Discount d WHERE d.code = ?1")
     void deleteByCode(String code);
+
+
 }

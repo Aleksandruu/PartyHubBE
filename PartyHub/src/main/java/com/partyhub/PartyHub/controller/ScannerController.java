@@ -26,32 +26,7 @@ public class ScannerController {
 
     @PostMapping("/validate/{ticketId}")
     public ResponseEntity<ApiResponse> validateTicket(@PathVariable UUID ticketId) {
-        try {
-            Ticket ticket = ticketService.findById(ticketId)
-                    .orElseThrow(() -> new TicketNotFoundException("Ticket not found!"));
-
-            if (ticket.getValidationDate() == null) {
-                ticket.setValidationDate(LocalDateTime.now());
-                Event event = ticket.getEvent();
-                Statistics statistics = event.getStatistics();
-
-                if ("invite".equals(ticket.getType())) {
-                    statistics.setInvitationBasedAttendees(statistics.getInvitationBasedAttendees() + 1);
-                } else {
-                    statistics.setTicketBasedAttendees(statistics.getTicketBasedAttendees() + 1);
-                }
-                statisticsService.save(statistics);
-
-                ticketService.saveTicket(ticket);
-
-                return ResponseEntity.ok(new ApiResponse(true, "Ticket has been successfully validated."));
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse(false, ticket.getValidationDate().toString()));
-            }
-        } catch (TicketNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse(false, e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse(false, "An error occurred while validating the ticket."));
-        }
+        ApiResponse response = ticketService.validateTicket(ticketId);
+        return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST).body(response);
     }
 }

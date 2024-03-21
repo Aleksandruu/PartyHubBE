@@ -3,22 +3,21 @@ package com.partyhub.PartyHub.dto;
 import jakarta.persistence.Lob;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.*;
 import java.time.LocalDate;
 import java.util.UUID;
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class EventDto {
     private UUID id;
 
     @NotEmpty(message = "The event name cannot be empty")
     private String name;
 
-    @Lob
     private byte[] mainBanner;
-
-    @Lob
     private byte[] secondaryBanner;
 
     @NotEmpty(message = "The event location cannot be empty")

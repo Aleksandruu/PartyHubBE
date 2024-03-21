@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket Confirmation</title>
+</head>
+<body>
+
+<h1>Your Tickets</h1>
+
+<p>Thank you for your purchase! Below are your QR code tickets for the event. Please bring them to the event for entry.</p>
+
+<div th:each="ticket : ${tickets}">
+    <h2>Ticket [[${ticket.index}]]</h2>
+    <p>Event Name: <span th:text="${ticket.eventName}">Event Name</span></p>
+    <p>Ticket ID: <span th:text="${ticket.id}">Ticket ID</span></p>
+    <!-- Display QR code image -->
+    <div>
+        <img th:src="${ticket.qrCodeUrl}" alt="QR Code" />
+    </div>
+</div>
+
+<p>If you have any questions or concerns, please contact us at [your contact information].</p>
+
+</body>
+</html>

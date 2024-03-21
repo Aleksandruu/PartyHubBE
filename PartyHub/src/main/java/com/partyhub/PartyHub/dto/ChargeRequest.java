@@ -3,6 +3,7 @@ package com.partyhub.PartyHub.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -14,4 +15,5 @@ public class ChargeRequest {
     private String userEmail;
     private String referralEmail;
     private String discountCode;
+    private BigDecimal price;
 }

@@ -7,12 +7,15 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.partyhub.PartyHub.dto.ChargeRequest;
 import com.partyhub.PartyHub.dto.PaymentResponse;
+import com.partyhub.PartyHub.entities.Event;
 import com.partyhub.PartyHub.entities.Ticket;
+import com.partyhub.PartyHub.entities.User;
+import com.partyhub.PartyHub.exceptions.EventNotFoundException;
 import com.partyhub.PartyHub.service.*;
+import com.partyhub.PartyHub.util.QRCodeUtil;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
-import com.stripe.model.Discount;
 import com.stripe.param.ChargeCreateParams;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +25,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import com.partyhub.PartyHub.entities.User;
 
 @RestController
 @RequiredArgsConstructor
@@ -44,55 +47,45 @@ public class PaymentController {
     private String apiKey;
 
     @PostMapping("/charge")
-    public PaymentResponse chargeCard(@RequestBody ChargeRequest chargeRequest) throws StripeException, IOException, WriterException, MessagingException {
+    public PaymentResponse chargeCard(@RequestBody ChargeRequest chargeRequest)
+            throws Exception {
         Stripe.apiKey = apiKey;
-        float discount = 0;
-        if(chargeRequest.getDiscountCode() != ""){
-            discount = this.discountService.findByCode(chargeRequest.getDiscountCode()).get().getDiscountValue();
-            discount = discount * eventService.getEventById(chargeRequest.getEventId()).get().getPrice();
-            this.discountService.deleteDiscountByCode(chargeRequest.getDiscountCode());
-        }
-        if(chargeRequest.getReferralEmail() != ""){
-            discount = eventService.getEventById(chargeRequest.getEventId()).get().getPrice() * eventService.getEventById(chargeRequest.getEventId()).get().getDiscount() * chargeRequest.getTickets();
-            int discountForNextTicket = this.userService.findByEmail(chargeRequest.getReferralEmail()).get().getUserDetails().getDiscountForNextTicket();
-            User user =  this.userService.findByEmail(chargeRequest.getReferralEmail()).get();
-            user.getUserDetails().setDiscountForNextTicket(discountForNextTicket + (int)(eventService.getEventById(chargeRequest.getEventId()).get().getDiscount()) * chargeRequest.getTickets());
-            this.userService.save(user);
-        }
-        float price = chargeRequest.getTickets() * eventService.getEventById(chargeRequest.getEventId()).get().getPrice() * 100 - discount;
 
-        String description = "Payment for " + chargeRequest.getTickets() + " tickets";
+        BigDecimal discount = discountService.applyDiscounts(chargeRequest, eventService, userService);
+
+        Event event = eventService.getEventById(chargeRequest.getEventId())
+                .orElseThrow(() -> new EventNotFoundException("Event not found."));
+        BigDecimal price = BigDecimal.valueOf(chargeRequest.getTickets())
+                .multiply(BigDecimal.valueOf(event.getPrice()))
+                .multiply(BigDecimal.valueOf(100))
+                .subtract(discount);
 
         ChargeCreateParams params = ChargeCreateParams.builder()
-                .setAmount((long)price)
+                .setAmount(price.longValueExact())
                 .setCurrency("RON")
-                .setDescription(description)
+                .setDescription("Payment for " + chargeRequest.getTickets() + " tickets")
                 .setSource(chargeRequest.getToken())
                 .build();
 
         Charge charge = Charge.create(params);
 
+        List<Pair<String, byte[]>> qrCodeAttachments = generateTicketsAndQRCodeAttachments(chargeRequest, event);
+
+        emailSenderService.sendEmailWithAttachments(chargeRequest.getUserEmail(), "Your Tickets", "Here are your tickets:", qrCodeAttachments);
+
+        return new PaymentResponse(charge.getId(), BigDecimal.valueOf(charge.getAmount()), charge.getCurrency(), charge.getDescription());
+    }
+
+    private List<Pair<String, byte[]>> generateTicketsAndQRCodeAttachments(ChargeRequest chargeRequest, Event event)
+            throws Exception {
         List<Pair<String, byte[]>> qrCodeAttachments = new ArrayList<>();
         for (int i = 0; i < chargeRequest.getTickets(); i++) {
-            Ticket ticket = new Ticket(UUID.randomUUID(), null, 0, "ticket", eventService.getEventById(chargeRequest.getEventId()).get());
+            Ticket ticket = new Ticket(UUID.randomUUID(), null, 0, "ticket", event);
             ticketService.saveTicket(ticket);
             String qrCodeData = ticket.getId().toString();
-            byte[] qrCodeImage = generateQRCodeImage(qrCodeData, 300, 300);
+            byte[] qrCodeImage = QRCodeUtil.generateQRCodeImage(qrCodeData, 300, 300);
             qrCodeAttachments.add(Pair.of("Ticket-" + ticket.getId() + ".png", qrCodeImage));
         }
-
-        String emailBody = "Here are your tickets:";
-        emailSenderService.sendEmailWithAttachments(chargeRequest.getUserEmail(), "Your Tickets", emailBody, qrCodeAttachments);
-
-        return new PaymentResponse(charge.getId(), charge.getAmount(), charge.getCurrency(), charge.getDescription());
+        return qrCodeAttachments;
     }
-
-    private byte[] generateQRCodeImage(String text, int width, int height) throws WriterException, IOException {
-        QRCodeWriter qrCodeWriter = new QRCodeWriter();
-        BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, width, height);
-        ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(bitMatrix, "PNG", pngOutputStream);
-        return pngOutputStream.toByteArray();
-    }
-
 }
